@@ -6,248 +6,237 @@
   <title>ClueNote</title>
   <style>
     :root{
-      --bg: #0b1220;         /* tiefes Blau, sehr dunkel */
-      --panel: #0f1b31;      /* Paneelblau */
-      --panel-2:#132545;     /* Hover/aktive Flächen */
-      --text: #e8f1ff;       /* fast weiß-blau */
-      --muted:#90a4c3;       /* gedämpfter Text */
-      --accent:#4ea0ff;      /* Akzentblau */
-      --accent-2:#1b79ff;    
-      --danger:#ff5c5c;
+      --bg:#0b1220; --panel:#0f1b31; --panel2:#132545; --text:#e8f1ff;
+      --muted:#90a4c3; --accent:#4ea0ff; --danger:#ff5c5c; --line:#1a2a4b;
+      --ok:#32d475; --card:#8ed0ff;
     }
-    *{box-sizing: border-box}
+    *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
-      color:var(--text); background:linear-gradient(180deg, var(--bg), #0a0f1a);
-      display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px;
+      margin:0; background:linear-gradient(180deg,var(--bg),#0a0f1a);
+      color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      padding:8px;
     }
-    header{ width: min(1100px, 95vw); }
-    h1{ margin:0 0 8px; font-weight:700; letter-spacing:.3px; font-size:clamp(20px, 2.6vw, 28px); }
-    .sub{ color:var(--muted); font-size:14px }
+
+    /* Max-Breite schmal für Handy, volle Höhe (kein Scrollen) */
+    .wrap{ width:min(520px,100%); height:100dvh; display:flex; flex-direction:column; gap:8px; }
+
+    header {
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center; /* <- Mitte! */
+  position:relative; /* damit wir Reset oder Shortcuts trotzdem positionieren können */
+}
+    h1{ margin:0; font-size:18px; letter-spacing:.2px }
+    .hint{ color:var(--muted); font-size:11px }
 
     .toolbar{
-      display:flex; gap:10px; flex-wrap:wrap; align-items:center; 
-      background:var(--panel); border:1px solid #1a2a4b; border-radius:14px; padding:10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+      background:var(--panel); border:1px solid var(--line);
+      border-radius:12px; padding:6px;
     }
-    .tool{ 
-      appearance:none; border:1px solid #27406f; background:var(--panel-2); color:var(--text);
-      padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; 
-      transition:.15s transform ease, .15s background ease, .15s border ease; user-select:none;
+    .tool{
+      border:1px solid #27406f; background:var(--panel2); color:var(--text);
+      padding:6px 9px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; user-select:none;
     }
-    .tool:hover{ transform: translateY(-1px); background:#162a50; }
-    .tool.active{ outline:2px solid var(--accent); border-color:var(--accent); background:#0f2244; }
-    .tool.reset{ background:#29191b; border-color:#5a2a2e; }
-    .tool.reset.arm{ outline:2px dashed var(--danger); }
+    .tool.active{ outline:2px solid var(--accent) }
+    .tool.reset{ margin-left:auto; background:#29191b; border-color:#5a2a2e }
+    .tool.reset.arm{ outline:2px dashed var(--danger) }
 
-    .names{
-      margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap;
-    }
-    .name{ 
-      width:120px; max-width:26vw; min-width:90px; 
-      background:var(--panel); color:var(--text); border:1px solid #1a2a4b; border-radius:10px; padding:8px 10px; 
-    }
-    .name:focus{ outline:2px solid var(--accent); border-color:transparent; }
+    /* Board nimmt den restlichen Platz ein und ist scrollbar-frei:
+       Wir skalieren die Inhalte automatisch, falls Höhe knapp wird. */
+    .board{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-height:auto;
+  flex:none; /* <-- wichtig */
+}
 
-    main{ width:min(1100px, 95vw); display:grid; gap:14px }
-    section{ background:var(--panel); border:1px solid #1a2a4b; border-radius:16px; overflow:hidden; }
-    section h2{ margin:0; padding:12px 14px; font-size:16px; letter-spacing:.25px; background: #0e1a30; border-bottom:1px solid #1a2a4b; }
+    /* Kompakt-Header je Block */
+    .sect-title{
+      margin:0; padding:4px 8px; font-size:13px; letter-spacing:.3px; color:var(--text);
+      background:#0e1a30; border:1px solid var(--line); border-radius:8px;
+    }
 
+    /* Durchgehendes Notizblatt – pro Block ein Grid mit 2 Spalten */
     .grid{
-      display:grid; grid-template-columns: 1.6fr repeat(6, 1fr); /* 6 Spieler-Columns */
-      width:100%;
+      display:grid; grid-template-columns: 1fr 48px; /* Label | Kästchen */
+      border:1px solid var(--line); border-radius:8px; overflow:hidden;
     }
-    .grid .head{ position:sticky; top:0; background:#0e1a30; z-index:1; }
-
-    .cell{ 
-      padding:10px 12px; border-bottom:1px solid #1a2a4b; border-right:1px solid #1a2a4b; 
-      min-height:44px; display:flex; align-items:center; justify-content:center; 
-      font-weight:600; letter-spacing:.3px; user-select:none; cursor:pointer; 
+    .cell{
+      padding:6px 8px; min-height:28px; display:flex; align-items:center; justify-content:center;
+      border-bottom:1px solid var(--line); border-right:1px solid var(--line);
+      font-size:14px; cursor:pointer; user-select:none;
     }
-    .cell.label{ 
-      justify-content:flex-start; cursor:default; background: #0f1b31; color:var(--muted); font-weight:600; 
+    .label{ justify-content:flex-start; color:var(--muted); cursor:default }
+    /* letzte in Reihe kein rechter Rand */
+    .grid .cell:nth-child(2n){ border-right:none }
+    /* letzte Zeile: beide ohne bottom */
+    .grid .cell:last-child, .grid .cell:nth-last-child(2){ border-bottom:none }
+
+    /* Markierungen */
+    .mark-x{ color:var(--accent); font-weight:900 }
+    .mark-q{ color:#ffd36b; font-weight:900 }
+    .mark-ok{ color:var(--ok); font-weight:900 }
+    .mark-card{ color:var(--card); font-weight:900 }
+
+    footer{ color:var(--muted); font-size:11px }
+
+    /* Falls die Bildschirmhöhe extrem klein ist, skaliert die Schrift minimal mit runter */
+    @media (max-height:700px){
+      .cell{ min-height:26px; font-size:13px }
+      .tool{ font-size:12px; padding:5px 8px }
+      .sect-title{ font-size:12px }
+      h1{ font-size:17px }
     }
-    .cell:last-child{ border-right:none }
-    .row:last-child .cell{ border-bottom:none }
-
-    .mark-x{ color:var(--accent); font-size:20px }
-    .mark-q{ color:#ffd36b; font-size:19px }
-
-    footer{ color:var(--muted); font-size:12px; margin-top:8px }
-    .pill{ display:inline-block; background:#0f1b31; border:1px solid #1a2a4b; padding:2px 8px; border-radius:999px; }
-    .grow{ flex:1 }
+    @media (max-height:620px){
+      .cell{ min-height:24px; font-size:12.5px; padding:5px 7px }
+      .grid{ grid-template-columns: 1fr 44px }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>ClueNote</h1>
+  <div class="wrap">
+    <header>
+      <h1>ClueNote</h1>
     
-  </header>
+    </header>
 
-  <div class="toolbar" id="toolbar">
-    <button class="tool active" data-mode="x" title="Kreuz setzen (Taste 1)">✕ Kreuz</button>
-    <button class="tool" data-mode="q" title="Fragezeichen setzen (Taste 2)">? Frage</button>
-    <button class="tool" data-mode="clear" title="Löschen (Taste 3)">⌫ Löschen</button>
-    <div class="grow"></div>
+    <div class="toolbar" id="toolbar">
+      <button class="tool active" data-mode="x">✕</button>
+      <button class="tool" data-mode="q">?</button>
+      <button class="tool" data-mode="ok">✅</button>
+      <button class="tool" data-mode="card">🃏</button>
+      <button class="tool" data-mode="clear">⌫</button>
+      <button class="tool reset" id="resetBtn" title="Doppelt drücken zum Zurücksetzen">Zurücksetzen</button>
+    </div>
 
-    <button class="tool reset" id="resetBtn" title="Doppelt drücken zum Zurücksetzen">Zurücksetzen</button>
+    <!-- BOARD: alle Kategorien untereinander – ohne Scrollen dank kompakter Rows -->
+    <div class="board">
+      <h3 class="sect-title">WER?</h3>
+      <div id="grid-who" class="grid"></div>
+
+      <h3 class="sect-title">WOMIT?</h3>
+      <div id="grid-what" class="grid"></div>
+
+      <h3 class="sect-title">WO?</h3>
+      <div id="grid-where" class="grid"></div>
+    </div>
+
+   
   </div>
 
-  <main id="board"></main>
-
-  <footer>
-    <span class="pill">Speicherung: automatisch in deinem Browser (localStorage). Zum vollständigen Löschen den Reset-Button doppelt drücken.</span>
-  </footer>
-
   <script>
-    // ----- Daten -----
+    // Daten
     const CATEGORIES = [
-      { title: 'WER?', items: ['Grün','Gatow','Porz','Bloom','Gloria','Weiß'] },
-      { title: 'WOMIT?', items: ['Leuchter','Dolch','Heizungsrohr','Pistole','Seil','Rohrzange'] },
-      { title: 'WO?', items: ['Musikzimmer','Billardzimmer','Wintergarten','Speisezimmer','Halle','Küche','Bibliothek','Salon','Arbeitszimmer'] },
+      { id:'who',   items:['Grün','Gatow','Porz','Bloom','Gloria','Weiß'] },
+      { id:'what',  items:['Leuchter','Dolch','Heizungsrohr','Pistole','Seil','Rohrzange'] },
+      { id:'where', items:['Musikzimmer','Billardzimmer','Wintergarten','Speisezimmer','Halle','Küche','Bibliothek','Salon','Arbeitszimmer'] },
     ];
-    const COLS = 6; // Spieler-Spalten
-    const STORAGE_KEY = 'cluedo-board-v1';
+    const STORAGE_KEY = 'cluenote-compact-v1';
 
-    // ----- State -----
+    // State
     const state = {
-      mode: 'x', // 'x' | 'q' | 'clear'
-      players: new Array(COLS).fill(''),
-      // Matrix: [categoryIndex][rowIndex][colIndex] -> '', 'x', 'q'
-      marks: CATEGORIES.map(cat => cat.items.map(() => new Array(COLS).fill(''))),
+      mode:'x', // 'x' | 'q' | 'ok' | 'card' | 'clear'
+      // marks: {who:[...], what:[...], where:[...]}
+      marks: Object.fromEntries(CATEGORIES.map(c => [c.id, c.items.map(()=>'')]))
     };
 
-    // ----- UI bauen -----
-    const board = document.getElementById('board');
-
-    function buildBoard(){
-      board.innerHTML = '';
-      CATEGORIES.forEach((cat, cIdx) => {
-        const section = document.createElement('section');
-        const h2 = document.createElement('h2'); h2.textContent = cat.title; section.appendChild(h2);
-
-        const grid = document.createElement('div'); grid.className = 'grid';
-        // Kopfzeile
-        grid.appendChild(cell('Begriff', true));
-        for(let col=0; col<COLS; col++){
-          const headerName = state.players[col] || `S${col+1}`;
-          const head = cell(headerName, true); head.classList.add('head'); grid.appendChild(head);
-        }
-        // Zeilen
-        cat.items.forEach((label, rIdx) => {
-          const rowLabel = cell(label, true); grid.appendChild(rowLabel);
-          for(let col=0; col<COLS; col++){
-            const mark = state.marks[cIdx][rIdx][col];
-            const el = cell(renderMark(mark), false);
-            el.dataset.c = cIdx; el.dataset.r = rIdx; el.dataset.col = col;
-            el.addEventListener('click', onCellClick);
-            grid.appendChild(el);
-          }
+    // Build all grids
+    function buildAll(){
+      CATEGORIES.forEach(c => {
+        const host = document.getElementById('grid-'+c.id);
+        host.innerHTML = '';
+        c.items.forEach((label, rIdx) => {
+          host.appendChild(cell(label,true));
+          const mark = state.marks[c.id][rIdx];
+          const box = cell(renderMark(mark),false);
+          box.dataset.cat = c.id; box.dataset.r = rIdx;
+          box.onclick = onCellClick;
+          host.appendChild(box);
         });
-
-        section.appendChild(grid); board.appendChild(section);
       });
     }
 
     function cell(content, isLabel){
-      const div = document.createElement('div');
-      div.className = 'cell' + (isLabel ? ' label' : '');
-      div.innerHTML = content;
-      return div;
+      const d = document.createElement('div');
+      d.className = 'cell' + (isLabel ? ' label' : '');
+      d.innerHTML = content;
+      return d;
     }
-
     function renderMark(m){
-      if(m === 'x') return '<span class="mark-x">×</span>';
-      if(m === 'q') return '<span class="mark-q">?</span>';
+      if(m==='x')   return '<span class="mark-x">×</span>';
+      if(m==='q')   return '<span class="mark-q">?</span>';
+      if(m==='ok')  return '<span class="mark-ok">✓</span>';
+      if(m==='card')return '<span class="mark-card">🃏</span>';
       return '';
     }
-
-    function onCellClick(e){
-      const c = +this.dataset.c, r = +this.dataset.r, col = +this.dataset.col;
-      if(state.mode === 'clear') state.marks[c][r][col] = '';
-      else state.marks[c][r][col] = state.mode;
-      this.innerHTML = renderMark(state.marks[c][r][col]);
+    function onCellClick(){
+      const cat = this.dataset.cat, r = +this.dataset.r;
+      state.marks[cat][r] = (state.mode==='clear') ? '' : state.mode;
+      this.innerHTML = renderMark(state.marks[cat][r]);
       save();
     }
 
-    // ----- Toolbar / Modus -----
+    // Toolbar & Shortcuts
     const toolbar = document.getElementById('toolbar');
-    toolbar.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.tool');
-      if(!btn) return;
-      const mode = btn.dataset.mode;
-      if(!mode) return;
-      state.mode = mode; updateToolActive();
+    toolbar.addEventListener('click', e=>{
+      const btn = e.target.closest('.tool'); if(!btn) return;
+      const m = btn.dataset.mode; if(!m) return;
+      state.mode = m; updateActiveTool();
     });
-
-    function updateToolActive(){
+    function updateActiveTool(){
       document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
-      const active = document.querySelector(`.tool[data-mode="${state.mode}"]`);
-      if(active) active.classList.add('active');
+      const a = document.querySelector(`.tool[data-mode="${state.mode}"]`);
+      if(a) a.classList.add('active');
     }
-
-    // Tastenkürzel 1/2/3
-    window.addEventListener('keydown', (e)=>{
-      if(e.key === '1'){ state.mode='x'; updateToolActive(); }
-      else if(e.key === '2'){ state.mode='q'; updateToolActive(); }
-      else if(e.key === '3'){ state.mode='clear'; updateToolActive(); }
+    window.addEventListener('keydown', e=>{
+      if(e.key==='1') state.mode='x';
+      else if(e.key==='2') state.mode='q';
+      else if(e.key==='3') state.mode='clear';
+      else if(e.key==='4') state.mode='ok';
+      else if(e.key==='5') state.mode='card';
+      else return;
+      updateActiveTool();
     });
 
-    // Spielernamen speichern
-    [...document.querySelectorAll('.name')].forEach((input, idx)=>{
-      input.addEventListener('input', ()=>{ state.players[idx] = input.value; save(); buildBoard(); });
-    });
-
-    // ----- Reset mit Doppel-Eingabe -----
+    // Reset (doppelt)
     const resetBtn = document.getElementById('resetBtn');
-    let armTimer = null;
+    let armTimer=null;
     resetBtn.addEventListener('click', ()=>{
       if(!resetBtn.classList.contains('arm')){
-        resetBtn.classList.add('arm'); resetBtn.textContent = 'Nochmal drücken zum Bestätigen';
+        resetBtn.classList.add('arm'); resetBtn.textContent='Nochmal drücken…';
         clearTimeout(armTimer);
-        armTimer = setTimeout(()=>{ resetBtn.classList.remove('arm'); resetBtn.textContent = 'Zurücksetzen'; }, 2500);
+        armTimer = setTimeout(()=>{ resetBtn.classList.remove('arm'); resetBtn.textContent='Zurücksetzen'; }, 2000);
         return;
       }
-      // Bestätigt
       clearTimeout(armTimer);
       resetBtn.classList.remove('arm'); resetBtn.textContent='Zurücksetzen';
-      fullReset();
+      Object.keys(state.marks).forEach(k => state.marks[k] = state.marks[k].map(()=>'')); // clear
+      save(); buildAll();
     });
 
-    function fullReset(){
-      state.players = new Array(COLS).fill('');
-      for(let c=0;c<CATEGORIES.length;c++){
-        for(let r=0;r<CATEGORIES[c].items.length;r++){
-          state.marks[c][r] = new Array(COLS).fill('');
-        }
-      }
-      // Eingabefelder leeren
-      [...document.querySelectorAll('.name')].forEach(el=>el.value='');
-      save(); buildBoard();
-    }
-
-    // ----- Persistenz -----
-    function save(){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+    // Persistenz
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function load(){
       const raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return;
       try{
-        const obj = JSON.parse(raw);
-        if(obj && obj.players && obj.marks){
-          state.players = obj.players.slice(0, COLS).concat(new Array(COLS).fill('')).slice(0, COLS);
-          state.marks = obj.marks;
-          // UI-Felder füllen
-          [...document.querySelectorAll('.name')].forEach((el,i)=> el.value = state.players[i] || '');
-        }
-      }catch(err){ console.warn('Konnte gespeichertes Board nicht laden.', err); }
+        const s = JSON.parse(raw);
+        if(s && s.marks) state.marks = s.marks;
+        if(s && s.mode) state.mode = s.mode;
+      }catch(e){ console.warn('Konnte Speicher nicht laden', e); }
     }
 
-    // ----- Start -----
-    load();
-    buildBoard();
+    // Start
+    load(); buildAll(); updateActiveTool();
   </script>
 </body>
 </html>
