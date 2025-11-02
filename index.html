@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cluedo – Notizzettel</title>
+  <style>
+    :root{
+      --bg: #0b1220;         /* tiefes Blau, sehr dunkel */
+      --panel: #0f1b31;      /* Paneelblau */
+      --panel-2:#132545;     /* Hover/aktive Flächen */
+      --text: #e8f1ff;       /* fast weiß-blau */
+      --muted:#90a4c3;       /* gedämpfter Text */
+      --accent:#4ea0ff;      /* Akzentblau */
+      --accent-2:#1b79ff;    
+      --danger:#ff5c5c;
+    }
+    *{box-sizing: border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
+      color:var(--text); background:linear-gradient(180deg, var(--bg), #0a0f1a);
+      display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px;
+    }
+    header{ width: min(1100px, 95vw); }
+    h1{ margin:0 0 8px; font-weight:700; letter-spacing:.3px; font-size:clamp(20px, 2.6vw, 28px); }
+    .sub{ color:var(--muted); font-size:14px }
+
+    .toolbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; 
+      background:var(--panel); border:1px solid #1a2a4b; border-radius:14px; padding:10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    .tool{ 
+      appearance:none; border:1px solid #27406f; background:var(--panel-2); color:var(--text);
+      padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; 
+      transition:.15s transform ease, .15s background ease, .15s border ease; user-select:none;
+    }
+    .tool:hover{ transform: translateY(-1px); background:#162a50; }
+    .tool.active{ outline:2px solid var(--accent); border-color:var(--accent); background:#0f2244; }
+    .tool.reset{ background:#29191b; border-color:#5a2a2e; }
+    .tool.reset.arm{ outline:2px dashed var(--danger); }
+
+    .names{
+      margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+    }
+    .name{ 
+      width:120px; max-width:26vw; min-width:90px; 
+      background:var(--panel); color:var(--text); border:1px solid #1a2a4b; border-radius:10px; padding:8px 10px; 
+    }
+    .name:focus{ outline:2px solid var(--accent); border-color:transparent; }
+
+    main{ width:min(1100px, 95vw); display:grid; gap:14px }
+    section{ background:var(--panel); border:1px solid #1a2a4b; border-radius:16px; overflow:hidden; }
+    section h2{ margin:0; padding:12px 14px; font-size:16px; letter-spacing:.25px; background: #0e1a30; border-bottom:1px solid #1a2a4b; }
+
+    .grid{
+      display:grid; grid-template-columns: 1.6fr repeat(6, 1fr); /* 6 Spieler-Columns */
+      width:100%;
+    }
+    .grid .head{ position:sticky; top:0; background:#0e1a30; z-index:1; }
+
+    .cell{ 
+      padding:10px 12px; border-bottom:1px solid #1a2a4b; border-right:1px solid #1a2a4b; 
+      min-height:44px; display:flex; align-items:center; justify-content:center; 
+      font-weight:600; letter-spacing:.3px; user-select:none; cursor:pointer; 
+    }
+    .cell.label{ 
+      justify-content:flex-start; cursor:default; background: #0f1b31; color:var(--muted); font-weight:600; 
+    }
+    .cell:last-child{ border-right:none }
+    .row:last-child .cell{ border-bottom:none }
+
+    .mark-x{ color:var(--accent); font-size:20px }
+    .mark-q{ color:#ffd36b; font-size:19px }
+
+    footer{ color:var(--muted); font-size:12px; margin-top:8px }
+    .pill{ display:inline-block; background:#0f1b31; border:1px solid #1a2a4b; padding:2px 8px; border-radius:999px; }
+    .grow{ flex:1 }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cluedo – Digitaler Notizzettel</h1>
+    <div class="sub">Minimalistisches blaues Board mit persistentem Speicher (lokal). Wähle unten den Modus und klicke in die Kästchen.</div>
+  </header>
+
+  <div class="toolbar" id="toolbar">
+    <button class="tool active" data-mode="x" title="Kreuz setzen (Taste 1)">✕ Kreuz</button>
+    <button class="tool" data-mode="q" title="Fragezeichen setzen (Taste 2)">? Frage</button>
+    <button class="tool" data-mode="clear" title="Löschen (Taste 3)">⌫ Löschen</button>
+    <div class="grow"></div>
+
+    <button class="tool reset" id="resetBtn" title="Doppelt drücken zum Zurücksetzen">Zurücksetzen</button>
+  </div>
+
+  <main id="board"></main>
+
+  <footer>
+    <span class="pill">Speicherung: automatisch in deinem Browser (localStorage). Zum vollständigen Löschen den Reset-Button doppelt drücken.</span>
+  </footer>
+
+  <script>
+    // ----- Daten -----
+    const CATEGORIES = [
+      { title: 'WER?', items: ['Grün','Gatow','Porz','Bloom','Gloria','Weiß'] },
+      { title: 'WOMIT?', items: ['Leuchter','Dolch','Heizungsrohr','Pistole','Seil','Rohrzange'] },
+      { title: 'WO?', items: ['Musikzimmer','Billardzimmer','Wintergarten','Speisezimmer','Halle','Küche','Bibliothek','Salon','Arbeitszimmer'] },
+    ];
+    const COLS = 6; // Spieler-Spalten
+    const STORAGE_KEY = 'cluedo-board-v1';
+
+    // ----- State -----
+    const state = {
+      mode: 'x', // 'x' | 'q' | 'clear'
+      players: new Array(COLS).fill(''),
+      // Matrix: [categoryIndex][rowIndex][colIndex] -> '', 'x', 'q'
+      marks: CATEGORIES.map(cat => cat.items.map(() => new Array(COLS).fill(''))),
+    };
+
+    // ----- UI bauen -----
+    const board = document.getElementById('board');
+
+    function buildBoard(){
+      board.innerHTML = '';
+      CATEGORIES.forEach((cat, cIdx) => {
+        const section = document.createElement('section');
+        const h2 = document.createElement('h2'); h2.textContent = cat.title; section.appendChild(h2);
+
+        const grid = document.createElement('div'); grid.className = 'grid';
+        // Kopfzeile
+        grid.appendChild(cell('Begriff', true));
+        for(let col=0; col<COLS; col++){
+          const headerName = state.players[col] || `S${col+1}`;
+          const head = cell(headerName, true); head.classList.add('head'); grid.appendChild(head);
+        }
+        // Zeilen
+        cat.items.forEach((label, rIdx) => {
+          const rowLabel = cell(label, true); grid.appendChild(rowLabel);
+          for(let col=0; col<COLS; col++){
+            const mark = state.marks[cIdx][rIdx][col];
+            const el = cell(renderMark(mark), false);
+            el.dataset.c = cIdx; el.dataset.r = rIdx; el.dataset.col = col;
+            el.addEventListener('click', onCellClick);
+            grid.appendChild(el);
+          }
+        });
+
+        section.appendChild(grid); board.appendChild(section);
+      });
+    }
+
+    function cell(content, isLabel){
+      const div = document.createElement('div');
+      div.className = 'cell' + (isLabel ? ' label' : '');
+      div.innerHTML = content;
+      return div;
+    }
+
+    function renderMark(m){
+      if(m === 'x') return '<span class="mark-x">×</span>';
+      if(m === 'q') return '<span class="mark-q">?</span>';
+      return '';
+    }
+
+    function onCellClick(e){
+      const c = +this.dataset.c, r = +this.dataset.r, col = +this.dataset.col;
+      if(state.mode === 'clear') state.marks[c][r][col] = '';
+      else state.marks[c][r][col] = state.mode;
+      this.innerHTML = renderMark(state.marks[c][r][col]);
+      save();
+    }
+
+    // ----- Toolbar / Modus -----
+    const toolbar = document.getElementById('toolbar');
+    toolbar.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.tool');
+      if(!btn) return;
+      const mode = btn.dataset.mode;
+      if(!mode) return;
+      state.mode = mode; updateToolActive();
+    });
+
+    function updateToolActive(){
+      document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+      const active = document.querySelector(`.tool[data-mode="${state.mode}"]`);
+      if(active) active.classList.add('active');
+    }
+
+    // Tastenkürzel 1/2/3
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === '1'){ state.mode='x'; updateToolActive(); }
+      else if(e.key === '2'){ state.mode='q'; updateToolActive(); }
+      else if(e.key === '3'){ state.mode='clear'; updateToolActive(); }
+    });
+
+    // Spielernamen speichern
+    [...document.querySelectorAll('.name')].forEach((input, idx)=>{
+      input.addEventListener('input', ()=>{ state.players[idx] = input.value; save(); buildBoard(); });
+    });
+
+    // ----- Reset mit Doppel-Eingabe -----
+    const resetBtn = document.getElementById('resetBtn');
+    let armTimer = null;
+    resetBtn.addEventListener('click', ()=>{
+      if(!resetBtn.classList.contains('arm')){
+        resetBtn.classList.add('arm'); resetBtn.textContent = 'Nochmal drücken zum Bestätigen';
+        clearTimeout(armTimer);
+        armTimer = setTimeout(()=>{ resetBtn.classList.remove('arm'); resetBtn.textContent = 'Zurücksetzen'; }, 2500);
+        return;
+      }
+      // Bestätigt
+      clearTimeout(armTimer);
+      resetBtn.classList.remove('arm'); resetBtn.textContent='Zurücksetzen';
+      fullReset();
+    });
+
+    function fullReset(){
+      state.players = new Array(COLS).fill('');
+      for(let c=0;c<CATEGORIES.length;c++){
+        for(let r=0;r<CATEGORIES[c].items.length;r++){
+          state.marks[c][r] = new Array(COLS).fill('');
+        }
+      }
+      // Eingabefelder leeren
+      [...document.querySelectorAll('.name')].forEach(el=>el.value='');
+      save(); buildBoard();
+    }
+
+    // ----- Persistenz -----
+    function save(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+    function load(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return;
+      try{
+        const obj = JSON.parse(raw);
+        if(obj && obj.players && obj.marks){
+          state.players = obj.players.slice(0, COLS).concat(new Array(COLS).fill('')).slice(0, COLS);
+          state.marks = obj.marks;
+          // UI-Felder füllen
+          [...document.querySelectorAll('.name')].forEach((el,i)=> el.value = state.players[i] || '');
+        }
+      }catch(err){ console.warn('Konnte gespeichertes Board nicht laden.', err); }
+    }
+
+    // ----- Start -----
+    load();
+    buildBoard();
+  </script>
+</body>
+</html>
